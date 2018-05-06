@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<title>Document</title>
+	<link rel="stylesheet" href="dahuiji.css" />
+	<script>
+		window.onload = function(){
+			this.main = new Engine();
+			this.plane = new Plane();
+		}
+		class Engine{
+			constructor(){
+				this.ele = document.getElementById('body_main');
+				this.init();
+				this.oScore = document.getElementById('sco');
+				this.score = 0;
+				this.menu = document.getElementById('menu');
+				this.exit = document.getElementById('exit');
+				this.more = document.getElementById('more');
+			}
+			
+			// this.more.onclick = function(){
+
+			// 	this.init();
+			// }.bind(this);
+		
+		//原型方法
+		// Engine.prototype = {
+			//初始化
+			init(){
+				var oLis = this.ele.children[0].children;
+				var that = this;
+				for (var i = 0; i < oLis.length; i++) {
+					oLis[i].index = i;
+					oLis[i].onclick = function(){
+						//移除选项页面
+						this.parentNode.remove();
+						//设置等级
+						that.range = this.index;
+						//显示加载页面
+						that.load();
+					}
+				}
+			}
+			//加载页面
+			load(){
+				//logo
+				this.logo = createEle('div', 'logo');
+				appendToBody(this.logo);
+				//加载动画
+				this.loading = createEle('div', 'loading');
+				appendToBody(this.loading);
+				var count = 0;
+				var that = this;
+				var timer = setInterval(function(){
+					//循环切换背景图
+					that.loading.style.background = "url(images/loading" + (++count % 3 + 1) + ".png";
+				}, 300);
+				//背景滚动
+				var positionY = 0;
+				setInterval(function(){
+					that.ele.style.backgroundPositionY = ++positionY + 'px';
+				}, 50);
+				//清除logo和加载动画
+				setTimeout(function(){
+					//清除加载动画计时器
+					clearInterval(timer);
+					//清除logo和加载动画
+					that.logo.remove();
+					that.loading.remove();
+					//初始化我方飞机
+					plane.init();
+					plane.move();
+					plane.fire(that.range);
+					//初始化敌人
+					that.initEnemy();
+					playSound2();
+				}, 1000);
+			}
+			//初始化敌人
+			initEnemy(){
+				setInterval(function(){
+					new Enemy(0);
+				}, 2000);
+				setInterval(function(){
+					new Enemy(1);
+				}, 5000);
+				setInterval(function(){
+					new Enemy(2);
+				}, 10000);
+			}
+		}
+		// };
+
+		//我方飞机对象
+		class Plane{
+			constructor(){
+				this.flag = true;
+				this.ele = createEle('div', 'my-warplain');
+				//存放子弹的数组
+				this.bullets = [];
+			}
+			init(){
+				this.flag = true;
+				this.ele = createEle('div', 'my-warplain');
+				appendToBody(this.ele);
+				var initX = document.documentElement.clientWidth || document.body.clientWidth;
+				var initY = document.documentElement.clientHeight || document.body.clientHeight;
+				this.ele.style.left = initX / 2 - this.ele.offsetWidth / 2 + 'px';
+				this.ele.style.top = initY - this.ele.offsetHeight + 'px';
+			}
+			move(){
+				var that = this;
+				//飞机的鼠标跟随
+				document.onmousemove = function(event){
+					var e = event || window.event;
+					var left = e.clientX - that.ele.offsetWidth / 2;
+					var top = e.clientY - that.ele.offsetHeight / 2;
+					//移动边界判断
+					var body_main = document.getElementById('body_main');
+					if (left <= body_main.offsetLeft) {
+						left = body_main.offsetLeft;
+					} else if (left >= body_main.offsetLeft + body_main.offsetWidth - that.ele.offsetWidth) {
+						left = body_main.offsetLeft + body_main.offsetWidth - that.ele.offsetWidth;
+					}
+					if (top <= 0) {
+						top = 0;
+					} else if (top >= body_main.offsetHeight - that.ele.offsetHeight) {
+						top = body_main.offsetHeight - that.ele.offsetHeight;
+					}
+					that.ele.style.left = left + 'px';
+					that.ele.style.top = top +'px';
+				}
+			}
+			
+			fire(range){
+				switch(range){
+					case 0: this.range = 400; break;
+					case 1: this.range = 300; break;
+					case 2: this.range = 200; break;
+					case 3: this.range = 100; break;
+				}
+				var that = this;
+				var index = 0;
+				var timers = setInterval(function(){
+					if (!plane.flag) {clearInterval(timers);}
+					var bul = new Bullet();
+					
+					bul.index = index++;
+					that.bullets.push(bul);
+					bul.move();
+					// console.log(that.bullets, bul.index);
+				}, this.range);
+				
+			}
+			die(){
+				var count = 0;
+				var that = this;
+				this.flag = false;
+				// document.onmousemove = null;
+				this.timer = setInterval(function(){
+					if (count>4) {
+						clearInterval(that.timer);
+						setTimeout(function(){
+							that.ele.remove();
+							main.menu.style.display = "block";
+						}, 100);
+						return;
+					}
+					that.ele.style.background = "url(images/me_die" + ++count + ".png)";
+				}, 100);
+			}
+		}
+		
+		//子弹
+		class Bullet{
+			constructor(){
+				this.ele = createEle('div', 'bullet');
+				//子弹状态确认，为true为已爆炸，但由于爆炸效果，不会立刻消失，会导致敌机一直扣血，所以设置这个boomEd做判断
+				this.boomEd = false;
+				appendToBody(this.ele);
+				this.ele.style.left = plane.ele.offsetLeft + plane.ele.offsetWidth / 2 - this.ele.offsetWidth / 2 + 'px';
+				this.ele.style.top = plane.ele.offsetTop - this.ele.offsetHeight + 'px';
+			}
+			
+
+			move(){
+				var that = this;
+				this.timer = setInterval(function(){
+					if (that.ele.offsetTop <= 10) {	
+						//子弹爆炸
+						that.boom();
+						return;
+					}
+					that.ele.style.top = that.ele.offsetTop - 8 + 'px';
+				}, 10);
+			}
+			//子弹爆炸
+			boom(){
+				clearInterval(this.timer);
+				//子弹已经爆炸了
+				this.boomEd = true;
+				var that = this;			
+				//切换子弹爆炸特效图1
+				this.ele.className = "bullet_die";
+
+				setTimeout(function(){
+					setTimeout(function(){
+						//从页面中移除子弹
+						that.ele.remove();
+						//必须先从页面中移除，再从数组中移除当前子弹实例，不然遍历数组时找不到
+						plane.bullets.splice(this.ele.index, 1);
+					}, 25);
+					//切换子弹爆炸特效图1
+					that.ele.className = "bullet_die2";
+				}, 25);
+				
+			}
+		}
+		
+		//敌人
+		class Enemy{
+			constructor(type){
+				this.type = type;
+				this.init();
+			}
+			
+			
+			init(){
+				this.ele = createEle('div', '');
+				appendToBody(this.ele);
+				switch(this.type){
+					//设置敌人类型,血量和对应的移动速度,死亡图片的个数、
+					case 0: 
+						this.ele.className = 'enemy-small';
+						this.hp = 1;
+						this.speed = 3;
+						this.dies = 3;
+						break;
+					case 1: 
+						this.ele.className = 'enemy-middle';
+						this.hp = 5;
+						this.speed = 2;
+						this.dies = 4;
+						break;
+					case 2: 
+						this.ele.className = 'enemy-large';
+						this.hp = 20;
+						this.speed = 1;
+						this.dies = 6;
+						break;
+				}
+				//设置敌人初始位置
+				this.initPosition();
+				//敌人移动
+				this.enemyMove();
+			}
+			initPosition(){
+				var body_main = document.getElementById('body_main');
+				// console.log(body.offsetLeft, )
+				var left = getRandom(body_main.offsetLeft, body_main.offsetLeft + body_main.offsetWidth - this.ele.offsetWidth);
+				var top = -this.ele.offsetHeight;
+				this.ele.style.left = left + 'px';
+				this.ele.style.top = top + 'px';
+			}
+			enemyMove(){
+				var that = this;
+				var body_main = document.getElementById('body_main');
+				this.timer = setInterval(function(){
+					if (that.ele.offsetTop >= body_main.offsetHeight) {
+						that.ele.remove();
+						clearInterval(that.timer);
+					}
+					//碰撞检测
+					that.check();
+					that.ele.style.top = that.ele.offsetTop + that.speed + 'px';
+				}, 10);
+			}
+			check(){
+				//与子弹的碰撞
+				for (var i = 0; i < plane.bullets.length; i++) {
+					//前提是子弹未爆炸
+					if (!plane.bullets[i].boomEd) {
+						//纵向相交
+						if ((plane.bullets[i].ele.offsetTop - this.ele.offsetTop) <= this.ele.offsetHeight) {
+							//横向相交
+							if (Math.abs(plane.bullets[i].ele.offsetLeft - this.ele.offsetLeft) <= this.ele.offsetWidth && (plane.bullets[i].ele.offsetLeft + plane.bullets[i].ele.offsetWidth) >= this.ele.offsetLeft) {
+								//移除子弹
+								plane.bullets[i].boom();
+								this.hp--;
+								
+								console.log(this.hp);
+								var that = this;
+								if (!this.hp) {
+									playSound1();
+									switch(this.type){
+										case 0: main.score += 10; break;
+										case 1: main.score += 50; break;
+										case 2: main.score += 150; break;
+									}
+									main.oScore.innerHTML = "得分：" + main.score;
+									console.log(main.oScore);
+
+									clearInterval(this.timer);
+									//计数器，用于改变背景图
+									var index = 1;
+									var timer1 = setInterval(function(){
+										if (index == that.dies) {
+											clearInterval(timer1);
+											setTimeout(function(){
+												that.ele.remove();
+											}, 100);
+										}
+										that.ele.style.background = "url(images/plane" + (that.type + 1) + "_die" + index++ + ".png)";
+									}, 50);
+								}
+							}
+						}
+					}
+				}
+				//与我方飞机的碰撞
+				//纵向相交
+				if ((this.ele.offsetTop + this.ele.offsetHeight >= plane.ele.offsetTop) && plane.ele.offsetTop + plane.ele.offsetHeight >= this.ele.offsetTop) {
+					//横向相交
+					if ((this.ele.offsetLeft <= plane.ele.offsetLeft + plane.ele.offsetWidth) && (this.ele.offsetLeft + this.ele.offsetWidth >= plane.ele.offsetLeft)) {
+						//我方飞机死亡
+						plane.die();
+					}
+				}
+			}
+		}
+		
+
+
+		//方法区
+
+		//生成指定区间的随机数
+		function getRandom(min, max){
+			return Math.ceil(Math.random() * (max - min + 1)) + min;
+		}
+
+		//移除元素
+		Element.prototype.remove = function(){
+			this.parentNode.removeChild(this);
+		}
+		//创建元素
+		function createEle(target, className){
+			var ele = document.createElement(target);
+			ele.className = className;
+			return ele;
+		}
+		//将元素添加到body
+		function appendToBody(ele){
+			document.body.appendChild(ele);
+		}
+		//
+		var au1 = document.createElement("audio");
+		var au2 = document.createElement("audio");
+		au1.preload="auto";
+		au2.preload="auto";
+		au1.src = "mp3/fky.mp3";
+		au2.src = "mp3/shoot.mp3";
+		au2.loop = "true";
+		function playSound1(src) {
+			au1.play();
+		}
+		function playSound2(src) {
+			au2.play();
+		}
+	</script>
+
+</head>
+<body>
+	
+	<div id="body_main" class="main">
+		<ul id="options" class="options">
+			<li value="1">超级困难</li>
+			<li value="2">非常困难</li>
+			<li value="3">比较困难</li>
+			<li value="4">就选我吧</li>
+		</ul>
+		<span id="sco"></span>
+		<div id="menu">
+			<div id="exit">接着玩</div>
+			<div id="more">再来一局</div>
+		</div>
+	</div>
+	<audio src="mp3/bgm.mp3" hidden="false" autoplay="autoplay" loop="true"></audio>
+</body>
+</html>
